@@ -1,0 +1,35 @@
+name: Database Migration (Neon to Target DB)
+
+# 触发条件：设置为手动触发 (workflow_dispatch)，防止代码提交时意外覆盖数据
+on:
+  workflow_dispatch: 
+
+jobs:
+  migrate-database:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL Client
+        # 安装 psql 和 pg_dump 工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Export and Import Database
+        env:
+          NEON_URL: ${{ secrets.NEON_DB_URL }}
+          TARGET_URL: ${{ secrets.TARGET_DB_URL }}
+        run: |
+          echo "📥 开始从 Neon 数据库导出数据..."
+          # 导出数据为 dump.sql
+          pg_dump "$NEON_URL" --clean --if-exists --no-owner --no-privileges > dump.sql
+          echo "✅ 导出完成，文件大小："
+          ls -lh dump.sql
+
+          echo "📤 开始导入数据到目标数据库..."
+          # 将 dump.sql 导入目标数据库
+          psql "$TARGET_URL" -f dump.sql
+          echo "🎉 数据库迁移执行完毕！"
